@@ -1,0 +1,59 @@
+#%RAML 1.0
+title: Order-History
+
+/Order-History:
+  displayName: Order History Inquiry
+  get:
+    description: Retreive order history for a Business customer
+    queryParameters:
+      business_id: 
+        description: Unique identifier for business ID
+        type: number
+        required: true
+      order_id: 
+        description: order id for a number 
+        type: number
+        required: false
+      time_period:
+        description: time period for which order information is to be retrieved
+        type: number
+        required: false  
+    headers:
+      Authorization: 
+        description: token for authentication
+        type: 
+    responses:
+      200:
+        body:
+          application/json:
+            example:
+              "business_id" : 12345,
+              "order_id": test123,
+              "total_amount": 50.00,
+              "order_date": 2023-11-09T12:30,
+              "order_status": completed
+#              "products": [
+#                    {
+#                      "productId": 1,
+#                      "productName": "Product A",
+#                      "quantity": 2,
+#                      "unitPrice": 75.00
+#                    },
+#                    {
+#                      "productId": 2,
+#                      "productName": "Product B",
+#                      "quantity": 1,
+#                      "unitPrice": 75.00
+#                    }
+#                  ]
+              
+      400: 
+        body:
+          application/json:
+            example:
+              {"error": "invalid input"}
+      401:
+        body:
+          application/json:
+            example:
+              {"error": "Unauthorised"}
