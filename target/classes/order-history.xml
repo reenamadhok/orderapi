@@ -1,0 +1,250 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mule xmlns:api-gateway="http://www.mulesoft.org/schema/mule/api-gateway" xmlns:db="http://www.mulesoft.org/schema/mule/db" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:apikit="http://www.mulesoft.org/schema/mule/mule-apikit" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd http://www.mulesoft.org/schema/mule/mule-apikit http://www.mulesoft.org/schema/mule/mule-apikit/current/mule-apikit.xsd http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd 
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd
+http://www.mulesoft.org/schema/mule/api-gateway http://www.mulesoft.org/schema/mule/api-gateway/current/mule-api-gateway.xsd">
+    <http:listener-config name="order-history-httpListenerConfig">
+        <http:listener-connection host="0.0.0.0" port="8081" />
+    </http:listener-config>
+    <apikit:config name="order-history-config" api="api/order-history.raml" outboundHeadersMapName="outboundHeaders" httpStatusVarName="httpStatus" />
+    <db:config name="Database_Config_Mysql_Orders" doc:name="Database Config" doc:id="f9dfeb51-b977-4d35-a3b4-7574c10c81c1" >
+		<db:my-sql-connection host="localhost" port="3306" user="root" password="Bali@2015" database="orders" />
+	</db:config>
+	<api-gateway:autodiscovery apiId="19230796" ignoreBasePath="true" doc:name="API Autodiscovery" doc:id="fe22b960-f6bd-4490-90ad-a3db1a4ce21f" flowRef="order-history-main" />
+	<flow name="order-history-main">
+        <http:listener config-ref="order-history-httpListenerConfig" path="/api/*">
+            <http:response statusCode="#[vars.httpStatus default 200]">
+                <http:headers><![CDATA[#[vars.outboundHeaders default {}]]]></http:headers>
+            </http:response>
+            <http:error-response statusCode="#[vars.httpStatus default 500]">
+                <http:body><![CDATA[#[payload]]]></http:body>
+                <http:headers><![CDATA[#[vars.outboundHeaders default {}]]]></http:headers>
+            </http:error-response>
+        </http:listener>
+        <apikit:router config-ref="order-history-config" />
+        <error-handler>
+            <on-error-propagate type="APIKIT:BAD_REQUEST">
+                <ee:transform doc:name="Transform Message">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Bad request"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus"><![CDATA[999]]></ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:NOT_FOUND">
+                <ee:transform doc:name="Transform Message">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Resource not found"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">404</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:METHOD_NOT_ALLOWED">
+                <ee:transform doc:name="Transform Message">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Method not allowed"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">405</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:NOT_ACCEPTABLE">
+                <ee:transform doc:name="Transform Message">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Not acceptable"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">406</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:UNSUPPORTED_MEDIA_TYPE">
+                <ee:transform doc:name="Transform Message">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Unsupported media type"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">415</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:NOT_IMPLEMENTED">
+                <ee:transform doc:name="Transform Message">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Not Implemented"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">501</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+        </error-handler>
+    </flow>
+    <flow name="order-history-console">
+        <http:listener config-ref="order-history-httpListenerConfig" path="/console/*">
+            <http:response statusCode="#[vars.httpStatus default 200]">
+                <http:headers>#[vars.outboundHeaders default {}]</http:headers>
+            </http:response>
+            <http:error-response statusCode="#[vars.httpStatus default 500]">
+                <http:body>#[payload]</http:body>
+                <http:headers>#[vars.outboundHeaders default {}]</http:headers>
+            </http:error-response>
+        </http:listener>
+        <apikit:console config-ref="order-history-config" />
+        <error-handler>
+            <on-error-propagate type="APIKIT:NOT_FOUND">
+                <ee:transform doc:name="Transform Message">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Resource not found"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">404</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+        </error-handler>
+    </flow>
+	<flow name="get:\Order-History:order-history-config">
+        <set-variable value="#[attributes.queryParams.business_id]" doc:name="Set Variable Business Id" doc:id="5945724e-2f98-43a3-815b-e62d69b1d528" variableName="var_business_id"/>
+		<set-variable value="#[attributes.queryParams.order_id]" doc:name="Set Variable order_id" doc:id="53807ad2-b475-49d6-a966-671116e5d304" variableName="var_order_id"/>
+		<db:select doc:name="Select" doc:id="9f3c0fd8-932b-4914-9341-8ead306a12b9" config-ref="Database_Config_Mysql_Orders">
+			<db:sql><![CDATA[SELECT * FROM orders WHERE business_id = :business_id;]]></db:sql>
+			<db:input-parameters><![CDATA[#[{
+	business_id : attributes.queryParams.business_id
+}]]]></db:input-parameters>
+		</db:select>
+		<choice doc:name="Choice" doc:id="b639d08d-2b5c-4fef-a82f-270dd11629be">
+			<when expression="vars.var_order_id !=null">
+				<db:select doc:name="Select" doc:id="ab18ad20-86b4-4c3e-8577-43b235059861" config-ref="Database_Config_Mysql_Orders">
+							<db:sql><![CDATA[Select 
+business_id,
+orders.order_id, 
+sum(quantity * price) as total_amount,
+order_date,
+status as order_status 
+from orders
+join orderdetails on orders.order_id = orderdetails.order_id
+join products on orderdetails.product_id = products.product_id
+where orders.order_id = :order_id
+and orders.business_id = :business_id
+group by business_id,
+orders.order_id
+;]]></db:sql>
+							<db:input-parameters><![CDATA[#[{
+	order_id: vars.var_order_id,
+	business_id: vars.var_business_id
+}]]]></db:input-parameters>
+						</db:select>
+				<ee:transform doc:name="Transform Message">
+            <ee:message>
+                <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+payload
+map
+{
+  business_id: $.business_id,
+  order_id: $.order_id,
+  total_amount: $.total_amount,
+  order_date: $.order_date,
+  order_status: $.order_status
+} as Object {encoding: "UTF-8", mediaType: "application/json"}]]></ee:set-payload>
+            </ee:message>
+        </ee:transform>
+			</when>
+			<when expression="#[sizeOf(payload) == 0]" >
+				<raise-error doc:name="Raise error business_id" doc:id="640330bb-b79d-4125-a81a-5f17bbceb57c" type="CUSTOM:NODATA" description="Invalid Business id"/>
+			</when>
+			<otherwise>
+				<db:select doc:name="Select" doc:id="8ba63514-7df9-474e-8bf3-ccfb9df2a541" config-ref="Database_Config_Mysql_Orders" >
+					<db:sql ><![CDATA[Select 
+business_id,
+orders.order_id, 
+sum(quantity * price) as total_amount,
+order_date,
+status as order_status 
+from orders
+join orderdetails on orders.order_id = orderdetails.order_id
+join products on orderdetails.product_id = products.product_id
+where orders.business_id = :business_id
+group by business_id,
+orders.order_id
+;]]></db:sql>
+					<db:input-parameters ><![CDATA[#[{
+	business_id: vars.var_business_id
+}]]]></db:input-parameters>
+				</db:select>
+				<ee:transform doc:name="Transform Message" doc:id="fdc7f444-a4ec-4737-9aac-572cf08b032e" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload
+map
+{
+  business_id: $.business_id,
+  order_id: $.order_id,
+  total_amount: $.total_amount,
+  order_date: $.order_date,
+  order_status: $.order_status
+} as Object {encoding: "UTF-8", mediaType: "application/json"}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</otherwise>
+		</choice>
+		<error-handler >
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="e159b639-a326-4238-b0b7-c66018edf6ea" type="DB:CONNECTIVITY">
+				<set-payload value="Database Not available : Connection Error" doc:name="Set Payload" doc:id="378a9216-1825-45a7-abdc-cc66d15034c2" />
+			</on-error-propagate>
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="1efc0b0f-5306-4677-b61d-4b02ce25a86d" type="CUSTOM:NODATA">
+				<ee:transform doc:name="Transform Message" doc:id="b19d5fc6-f2cd-45d8-a570-bc293844565a" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	errormessage: error.description
+}]]></ee:set-payload>
+					</ee:message>
+					<ee:variables >
+						<ee:set-variable variableName="httpStatus" ><![CDATA[%dw 2.0
+output application/java
+---
+410]]></ee:set-variable>
+						<ee:set-variable variableName="outboundHeaders" ><![CDATA[%dw 2.0
+output application/java
+---
+{
+	errormessage: error.errorMessage
+}]]></ee:set-variable>
+					</ee:variables>
+				</ee:transform>
+			</on-error-propagate>
+		</error-handler>
+    </flow>
+</mule>
